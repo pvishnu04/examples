@@ -1,0 +1,46 @@
+---
+- name: Deploy Apache Docker Container
+  hosts: local
+  become: yes
+
+  tasks:
+    - name: Ensure Docker is installed
+      apt:
+        name: docker.io
+        state: present
+        update_cache: yes
+
+    - name: Ensure Apache image is present
+      docker_image:
+        name: httpd
+        source: pull
+
+    - name: Create a custom network for the container
+      docker_network:
+        name: apache_network
+        ipam_options:
+          subnet: 172.168.10.0/30
+
+    - name: Run Apache container
+      docker_container:
+        name: apache_container
+        image: httpd
+        state: started
+        ports:
+          - "8080:80"
+        networks:
+          - name: apache_network
+            ipv4_address: 172.168.10.2
+
+    - name: Create index.html inside the container
+      command: docker exec apache_container bash -c 'echo "<html>
+        <head>
+          <title>Welcome to Apache</title>
+        </head>
+        <body>
+          <h1>Success! The Apache web server is running in a Docker container.</h1>
+        </body>
+        </html>" > /usr/local/apache2/htdocs/index.html'
+      args:
+        executable: /bin/bash
+      delegate_to: localhost
